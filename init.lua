@@ -1,14 +1,21 @@
-smartshop={user={},tmp={},dir={{x=0,y=0,z=-1},{x=-1,y=0,z=0},{x=0,y=0,z=1},{x=1,y=0,z=0}},dpos={
-{{x=0.2,y=0.2,z=0},{x=-0.2,y=0.2,z=0},{x=0.2,y=-0.2,z=0},{x=-0.2,y=-0.2,z=0}},
-{{x=0,y=0.2,z=0.2},{x=0,y=0.2,z=-0.2},{x=0,y=-0.2,z=0.2},{x=0,y=-0.2,z=-0.2}},
-{{x=-0.2,y=0.2,z=0},{x=0.2,y=0.2,z=0},{x=-0.2,y=-0.2,z=0},{x=0.2,y=-0.2,z=0}},
-{{x=0,y=0.2,z=-0.2},{x=0,y=0.2,z=0.2},{x=0,y=-0.2,z=-0.2},{x=0,y=-0.2,z=0.2}}}
+smartshop = {
+	user={},
+	tmp={},
+	dir={{x=0,y=0,z=-1},{x=-1,y=0,z=0},{x=0,y=0,z=1},{x=1,y=0,z=0}},
+	dpos={
+		{{x=0.2,y=0.2,z=0},{x=-0.2,y=0.2,z=0},{x=0.2,y=-0.2,z=0},{x=-0.2,y=-0.2,z=0}},
+		{{x=0,y=0.2,z=0.2},{x=0,y=0.2,z=-0.2},{x=0,y=-0.2,z=0.2},{x=0,y=-0.2,z=-0.2}},
+		{{x=-0.2,y=0.2,z=0},{x=0.2,y=0.2,z=0},{x=-0.2,y=-0.2,z=0},{x=0.2,y=-0.2,z=0}},
+		{{x=0,y=0.2,z=-0.2},{x=0,y=0.2,z=0.2},{x=0,y=-0.2,z=-0.2},{x=0,y=-0.2,z=0.2}}
+	}
 }
 
 -- table with itemname: number of items being traded
 smartshop.itemstats = {}
 smartshop.itemprices = {}
 smartshop.stuffsold = {}
+
+local WP = minetest.get_worldpath()
 
 
 
@@ -18,11 +25,8 @@ smartshop.itemsatpos = function(pos, item, count)
       smartshop.itemstats[item] = {}
    end
    smartshop.itemstats[item][pos] = count
-   local file = io.open(minetest.get_worldpath().."/smartshop_itemcounts.txt", "w")
-   if file then
-      file:write(minetest.serialize(smartshop.itemstats))
-      file:close()
-   end
+   local data = minetest.serialize(smartshop.itemstats)
+   minetest.safe_file_write(WP .. "/smartshop_itemcounts.txt", data)
 end
 
 smartshop.itempriceatpos = function(pos, item, price)
@@ -30,11 +34,8 @@ smartshop.itempriceatpos = function(pos, item, price)
    if smartshop.itemprices[item] == nil then
       smartshop.itemprices[item] = {}
    end
-   local file = io.open(minetest.get_worldpath().."/smartshop_itemprices.txt", "w")
-   if file then
-      file:write(minetest.serialize(smartshop.itemprices))
-      file:close()
-   end
+   local data = minetest.serialize(smartshop.itemprices)
+   minetest.safe_file_write(WP .. "/smartshop_itemprices.txt", data)
    smartshop.itemprices[item][pos] = price
 end
 
@@ -68,7 +69,7 @@ minetest.register_craft({
 })
 smartshop.get_human_name = function(item)
    if core.registered_items[item] then
-      return core.registered_items[item].description
+      return core.registered_items[item].short_description or core.registered_items[item].description or item
    else
       return "Unknown Item"
    end
@@ -130,10 +131,10 @@ smartshop.receive_fields=function(player,pressed)
 			end
 			if meta:get_int("type")==0 then
 				meta:set_int("type",1)
-				minetest.chat_send_player(pname, "Your stock is limited")
+				minetest.chat_send_player(pname, "Your stock is now limited.")
 			else
 				meta:set_int("type",0)
-				minetest.chat_send_player(pname, "Your stock is unlimited")
+				minetest.chat_send_player(pname, "Your stock is now unlimited.")
 			end
 		elseif not pressed.quit then
 			local n=1
@@ -246,7 +247,7 @@ smartshop.update_info=function(pos)
 			   smartshop.itemsatpos(spos, smartshop.stuffsold[spos..i], 0)
 			   smartshop.itempriceatpos(spos, smartshop.stuffsold[spos..i], nil)
 			   smartshop.stuffsold[spos..i] = nil
-			end						   
+			end
 		else
 		   smartshop.itemsatpos(spos, stuff["name"..i], stuff["buy"..i]*stuff["count" ..i])
 		   smartshop.itempriceatpos(spos, stuff["name"..i], stuff["pay"..i])
@@ -273,7 +274,7 @@ smartshop.update=function(pos,stat)
 	local spos=minetest.pos_to_string(pos)
 	for _, ob in ipairs(minetest.env:get_objects_inside_radius(pos, 2)) do
 		if ob and ob:get_luaentity() and ob:get_luaentity().smartshop and ob:get_luaentity().pos==spos then
-			ob:remove()	
+			ob:remove()
 		end
 	end
 	if stat=="clear" then return end
@@ -418,7 +419,7 @@ minetest.register_node("smartshop:shop", {
 			   end
 --			   minetest.chat_send_all(sellitem)
 			end
-			--			
+			--
 			return false
 		end,
 		input_inventory = "main",
@@ -463,7 +464,7 @@ allow_metadata_inventory_put = function(pos, listname, index, stack, player)
 	    inv:set_stack(listname, index, stack)
 	 end
 	 return 0
-      end 
+      end
       return stack:get_count()
    end
    return 0
@@ -475,7 +476,7 @@ allow_metadata_inventory_take = function(pos, listname, index, stack, player)
 	 local inv = minetest.get_inventory({type="node", pos=pos})
 	 inv:set_stack(listname, index, ItemStack(""))
 	 return 0
-      end       
+      end
       return stack:get_count()
    end
    return 0
@@ -489,13 +490,13 @@ allow_metadata_inventory_move = function(pos, from_list, from_index, to_list, to
       end
       if (string.find(from_list, "pay") or string.find(from_list, "give")) and to_list == "main" then
 	 inv:set_stack(from_list, from_index, ItemStack(""))
-	 return 0	 
+	 return 0
       elseif (string.find(to_list, "pay") or string.find(to_list, "give")) and from_list == "main" then
 	 if inv:get_stack(to_list, to_index):get_name() == inv:get_stack(from_list, from_index):get_name() then
 	    inv:add_item(to_list, inv:get_stack(from_list, from_index))
 	 else
 	    inv:set_stack(to_list, to_index, inv:get_stack(from_list, from_index))
-	    inv:set_stack(from_list, from_index, inv:get_stack(from_list, from_index))	    
+	    inv:set_stack(from_list, from_index, inv:get_stack(from_list, from_index))
 	 end
 	 return 0
       else
@@ -590,7 +591,7 @@ smartshop.report = function ()
    file:close()
 end
 
-minetest.register_chatcommand("smreport", {			      
+minetest.register_chatcommand("smreport", {
 	description = "Get number of items sold",
 	func = function(plname, params)
 	   smartshop.report()
@@ -612,7 +613,7 @@ if false then -- This lbm is used to add pre-update smartshops to the price data
 	 name = "smartshop:update",
 	 nodenames = {"smartshop:shop"},
 	 action = function(pos, node)
-	    smartshop.update_info(pos)	   
+	    smartshop.update_info(pos)
 	 end,
    })
 end
